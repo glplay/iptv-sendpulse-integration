@@ -152,43 +152,40 @@ def format_credentials_message(user_data):
 
 @app.route('/webhook', methods=['POST'])
 def webhook():
-    """Endpoint principal do webhook para receber solicitações do SendPulse."""
+    data = request.get_json()
+    print("Webhook recebido:", data)
+
+    phone = data.get('phone')
+    text = data.get('text')
+
+    if not phone or not text:
+        print("WARNING - Dados incompletos no webhook")
+        return 'Dados incompletos', 400
+
     try:
-        data = request.json
-        logger.info(f"Webhook recebido: {data}")
-        
-        # Verificar se é uma mensagem do WhatsApp
-        if 'message' not in data or 'phone' not in data:
-            logger.warning("Dados incompletos no webhook")
-            return jsonify({"status": "error", "message": "Dados incompletos"}), 400
-        
-        message_text = data['message'].strip().upper()
-        phone_number = data['phone']
-        
-        # Verificar se a mensagem é uma solicitação de teste
-        if message_text == "TESTE":
-            logger.info(f"Solicitação de teste recebida do número {phone_number}")
-            
-            # Extrair os 4 últimos dígitos do número de telefone
-            last_digits = extract_phone_last_digits(phone_number)
-            logger.info(f"Últimos 4 dígitos extraídos: {last_digits}")
-            
-            # Inicializar a automação do IPTV
-            iptv_automation = IPTVLoginAutomation()
-            
-            # Fazer login e obter o token JWT
-            token = iptv_automation.login_and_get_token()
-            
-            if not token:
-                logger.error("Falha ao obter token JWT")
-                return jsonify({"status": "error", "message": "Falha ao autenticar no painel IPTV"}), 500
-            
-            # Criar usuário de teste
-            user_data = iptv_automation.create_test_user(last_digits)
-            
-            if not user_data:
-                logger.error("Falha ao criar usuário de teste")
-                return jsonify({"status": "error", "message": "Falha ao criar usuário de teste"}), 500
+        # Extrair usuário e senha do texto
+        linhas = text.split('\n')
+        usuario = senha = None
+        for linha in linhas:
+            if 'usuario:' in linha.lower():
+                usuario = linha.split(':', 1)[1].strip()
+            if 'senha:' in linha.lower():
+                senha = linha.split(':', 1)[1].strip()
+
+        if not usuario or not senha:
+            print("WARNING - Falha ao extrair usuário/senha")
+            return 'Formato inválido', 400
+
+        print(f"Enviando login para {phone}: Usuário={usuario}, Senha={senha}")
+
+        # Aqui você pode colocar a função que envia pelo WhatsApp com o SendPulse
+
+        return jsonify({"status": "ok"}), 200
+
+    except Exception as e:
+        print("Erro ao processar webhook:", str(e))
+        return 'Erro interno', 500
+
             
             # Formatar mensagem com as credenciais
             credentials_message = format_credentials_message(user_data)
