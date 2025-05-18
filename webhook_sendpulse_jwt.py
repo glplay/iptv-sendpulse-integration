@@ -81,17 +81,16 @@ class SendPulseAPI:
                 'Content-Type': 'application/json'
             }
 
-            data = {
-                'bot_id': self.bot_id,
-                'phone': phone,
-                'message': message
+            url = f"{self.api_url}/whatsapp/{self.bot_id}/sendMessage"
+            payload = {
+                "phone": phone,
+                "message": {
+                    "type": "text",
+                    "text": message
+                }
             }
 
-            response = requests.post(
-                f"{self.api_url}/whatsapp/messages",
-                headers=headers,
-                json=data
-            )
+            response = requests.post(url, headers=headers, json=payload)
 
             if response.status_code in [200, 201]:
                 logger.info(f"Mensagem enviada com sucesso para {phone}")
