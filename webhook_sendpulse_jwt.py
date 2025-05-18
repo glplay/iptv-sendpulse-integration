@@ -187,8 +187,9 @@ def webhook():
         return 'Erro interno', 500
 
             
-            # Formatar mensagem com as credenciais
-            credentials_message = format_credentials_message(user_data)
+if user_data:
+    credentials_message = format_credentials_message(user_data)
+
             
             # Enviar credenciais via WhatsApp
             sendpulse_api = SendPulseAPI()
