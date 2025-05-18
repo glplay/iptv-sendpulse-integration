@@ -81,14 +81,12 @@ class SendPulseAPI:
                 'Content-Type': 'application/json'
             }
 
-            url = f"{self.api_url}/whatsapp/{self.bot_id}/sendMessage"
-            payload = {
-                "phone": phone,
-                "message": {
-                    "type": "text",
-                    "text": message
-                }
-            }
+          url = f"{self.api_url}/whatsapp/contacts/send"
+payload = {
+    "phone": phone,
+    "type": "text",
+    "text": message
+}
 
             response = requests.post(url, headers=headers, json=payload)
 
