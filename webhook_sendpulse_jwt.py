@@ -64,41 +64,31 @@ class SendPulseAPI:
             logger.error(f"Erro ao obter token: {str(e)}")
             return None
 
-    def send_whatsapp_message(self, phone, message):
-        if not self.access_token:
-            self.get_access_token()
-        if not self.access_token:
-            logger.error("Token de acesso ausente.")
-            return False
+def send_whatsapp_message(self, phone, message):
+    access_token = self.get_access_token()
+    if not access_token:
+        print("Erro ao obter o token de acesso")
+        return False
 
-        try:
-            phone = ''.join(filter(str.isdigit, phone))
-            if not phone.startswith('55'):
-                phone = f"55{phone}"
+    url = f"{self.api_url}/whatsapp/contacts/send"
+    headers = {
+        "Authorization": f"Bearer {access_token}",
+        "Content-Type": "application/json"
+    }
+    payload = {
+        "phone": phone,
+        "type": "text",
+        "text": message
+    }
 
-            headers = {
-                'Authorization': f'Bearer {self.access_token}',
-                'Content-Type': 'application/json'
-            }
+    response = requests.post(url, headers=headers, json=payload)
+    if response.status_code == 200:
+        print("Mensagem enviada com sucesso!")
+        return True
+    else:
+        print("Erro ao enviar mensagem:", response.status_code, response.text)
+        return False
 
-          url = f"{self.api_url}/whatsapp/contacts/send"
-payload = {
-    "phone": phone,
-    "type": "text",
-    "text": message
-}
-
-            response = requests.post(url, headers=headers, json=payload)
-
-            if response.status_code in [200, 201]:
-                logger.info(f"Mensagem enviada com sucesso para {phone}")
-                return True
-            else:
-                logger.error(f"Erro ao enviar mensagem: {response.status_code} - {response.text}")
-                return False
-        except Exception as e:
-            logger.error(f"Erro ao enviar mensagem: {str(e)}")
-            return False
 
 def format_credentials_message(user_data):
     return (
