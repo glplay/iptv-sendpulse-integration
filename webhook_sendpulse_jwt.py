@@ -134,7 +134,10 @@ def enviar_credenciais_whatsapp(numero_telefone, username, password, exp_date):
         logger.error(f"Erro ao enviar credenciais via WhatsApp: {str(e)}")
         return False
 
-
+@app.route('/', methods=['GET'])
+def index():
+    return jsonify({"status": "online", "mensagem": "API IPTV funcionando"}), 200
+    
 @app.route('/webhook/iptv-teste', methods=['POST'])
 def webhook_iptv_teste():
     try:
