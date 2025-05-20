@@ -37,6 +37,7 @@ SENDPULSE_CLIENT_SECRET = os.getenv("SENDPULSE_CLIENT_SECRET", "")
 TOKEN_FILE = os.getenv("TOKEN_FILE", "iptv_token.json")
 
 # Inicializar a automação de login
+import iptv_automation
 class IPTVLoginAutomation:
     def __init__(self, username, password, painel_url, token_file):
         self.username = username
