@@ -72,9 +72,11 @@ def obter_token_sendpulse():
 def criar_usuario_teste_iptv(ultimos_digitos):
     try:
         token = iptv_automation.get_token()
+        logger.info(f"Token JWT: {token}")  # Adiciona essa linha aqui
         if not token:
             logger.error("Token JWT não disponível para criar usuário")
             return None
+
 
         payload = {
             "notes": ultimos_digitos,
@@ -88,6 +90,7 @@ def criar_usuario_teste_iptv(ultimos_digitos):
             "Content-Type": "application/json"
         }
         response = requests.post(IPTV_API_URL, json=payload, headers=headers)
+        logger.info(f"Resposta bruta da API IPTV: {response.text}")
         response.raise_for_status()
         data = response.json()
         logger.info(f"Usuário IPTV criado: {data.get('username')}")
