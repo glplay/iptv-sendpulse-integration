@@ -23,6 +23,49 @@ class IPTVLoginAutomation:
         self.password = password
         self.painel_url = painel_url
         self.token_file = token_file
+        
+import random
+import string
+
+    def criar_usuario_teste(self, identificador):
+        """
+        Cria um usuário de teste no painel IPTV.
+        O identificador pode ser um e-mail ou número de telefone.
+        Retorna o usuário e senha criados.
+        """
+        try:
+            token = self.get_token()
+            if not token:
+                raise Exception("Token JWT não disponível.")
+
+            # Gerar um nome de usuário e senha aleatória
+            usuario = f"teste_{''.join(random.choices(string.ascii_lowercase + string.digits, k=6))}"
+            senha = ''.join(random.choices(string.ascii_letters + string.digits, k=8))
+
+            url = f"{self.painel_url}/users"  # Substitua esse endpoint pelo correto
+            headers = {
+                "Authorization": f"Bearer {token}",
+                "Content-Type": "application/json"
+            }
+
+            payload = {
+                "username": usuario,
+                "password": senha,
+                "email": identificador if "@" in identificador else f"{usuario}@teste.com",
+                "is_trial": True,
+                "days": 1  # exemplo: 1 dia de teste
+            }
+
+            response = requests.post(url, headers=headers, json=payload)
+            response.raise_for_status()
+
+            logger.info(f"Usuário de teste criado com sucesso: {usuario}")
+            return usuario, senha
+
+        except Exception as e:
+            logger.error(f"Erro ao criar usuário de teste IPTV: {e}")
+            raise
+
 
     def get_token(self):
         """
