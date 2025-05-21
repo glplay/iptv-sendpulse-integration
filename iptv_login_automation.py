@@ -1,54 +1,22 @@
 import logging
 import requests
-import pickle
-import os
 
 logger = logging.getLogger("iptv_login_automation")
 
 class IPTVLoginAutomation:
-    def __init__(self, username, password, painel_url, token_file="cookies.pkl"):
-        self.username = username
-        self.password = password
-        self.painel_url = painel_url
-        self.token_file = token_file
+    def __init__(self, token_jwt: str, painel_url: str):
+        self.token = token_jwt
+        self.painel_url = painel_url.rstrip("/")
         self.session = requests.Session()
-        self._login()
+        self.session.headers.update({
+            "Authorization": f"Bearer {self.token}",
+            "Accept": "application/json",
+            "Content-Type": "application/json"
+        })
+        logger.info(f"Painel IPTV URL definido como: {self.painel_url}")
 
-    def _login(self):
-        """Faz login no painel e salva cookies se necessário."""
-        if os.path.exists(self.token_file):
-            try:
-                with open(self.token_file, "rb") as f:
-                    self.session.cookies.update(pickle.load(f))
-                    logger.info("Cookies carregados de %s", self.token_file)
-                    return
-            except Exception as e:
-                logger.warning("Erro ao carregar cookies: %s", e)
-
-        login_url = f"{self.painel_url}/login"
-        payload = {
-            "username": self.username,
-            "password": self.password
-        }
-
-        try:
-            response = self.session.post(login_url, data=payload)
-            response.raise_for_status()
-
-            if "dashboard" in response.url:
-                with open(self.token_file, "wb") as f:
-                    pickle.dump(self.session.cookies, f)
-                logger.info("Login bem-sucedido e cookies salvos.")
-            else:
-                raise Exception("Login falhou. Verifique as credenciais.")
-
-        except Exception as e:
-            logger.error("Erro ao fazer login: %s", str(e))
-            raise
-
-    def criar_usuario_teste(self, phone):
+    def criar_usuario_teste(self, phone: str):
         """Cria um usuário de teste IPTV vinculado ao telefone informado."""
-
         criar_url = f"{self.painel_url}/lines/test"
 
         payload = {
@@ -59,13 +27,8 @@ class IPTVLoginAutomation:
             "testDuration": 4
         }
 
-        headers = {
-            "Accept": "application/json",
-            "Content-Type": "application/json"
-        }
-
         try:
-            response = self.session.post(criar_url, json=payload, headers=headers)
+            response = self.session.post(criar_url, json=payload)
             response.raise_for_status()
 
             data = response.json()
