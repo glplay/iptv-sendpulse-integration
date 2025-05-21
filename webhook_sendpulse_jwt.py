@@ -1,75 +1,79 @@
-import os
 import logging
-from flask import Flask, request, jsonify
-from dotenv import load_dotenv
-from iptv_login_automation import IPTVLoginAutomation
-from sendpulse_api import SendPulseAPI
+import requests
+import pickle
+import os
 
-# Carregar variáveis de ambiente
-load_dotenv()
+logger = logging.getLogger("iptv_login_automation")
 
-# Configurar logging
-logging.basicConfig(level=logging.INFO)
+class IPTVLoginAutomation:
+    def __init__(self, username, password, painel_url, token_file="cookies.pkl"):
+        self.username = username
+        self.password = password
+        self.painel_url = painel_url
+        self.token_file = token_file
+        self.session = requests.Session()
+        self._login()
 
-# Inicializar a automação de login IPTV
-IPTV_USERNAME = os.getenv("IPTV_USERNAME")
-IPTV_PASSWORD = os.getenv("IPTV_PASSWORD")
-IPTV_PANEL_URL = os.getenv("IPTV_URL")  # Corrigido aqui!
-TOKEN_FILE = os.getenv("TOKEN_FILE", "cookies.pkl")
+    def _login(self):
+        """Faz login no painel e salva cookies se necessário."""
+        if os.path.exists(self.token_file):
+            try:
+                with open(self.token_file, "rb") as f:
+                    self.session.cookies.update(pickle.load(f))
+                    logger.info("Cookies carregados de %s", self.token_file)
+                    return
+            except Exception as e:
+                logger.warning("Erro ao carregar cookies: %s", e)
 
-# Log para verificar carregamento correto
-logging.info(f"IPTV_URL carregado: {IPTV_PANEL_URL}")
+        login_url = f"{self.painel_url}/login"
+        payload = {
+            "username": self.username,
+            "password": self.password
+        }
 
-if not all([IPTV_USERNAME, IPTV_PASSWORD, IPTV_PANEL_URL]):
-    raise EnvironmentError("Erro: Variáveis de ambiente IPTV_USERNAME, IPTV_PASSWORD ou IPTV_URL não estão definidas.")
+        try:
+            response = self.session.post(login_url, data=payload)
+            response.raise_for_status()
 
-iptv_automation = IPTVLoginAutomation(
-    IPTV_USERNAME,
-    IPTV_PASSWORD,
-    IPTV_PANEL_URL,
-    TOKEN_FILE
-)
+            if "dashboard" in response.url:
+                with open(self.token_file, "wb") as f:
+                    pickle.dump(self.session.cookies, f)
+                logger.info("Login bem-sucedido e cookies salvos.")
+            else:
+                raise Exception("Login falhou. Verifique as credenciais.")
 
-# Inicializar a API do SendPulse
-SENDPULSE_CLIENT_ID = os.getenv("SENDPULSE_CLIENT_ID")
-SENDPULSE_CLIENT_SECRET = os.getenv("SENDPULSE_CLIENT_SECRET")
-SENDPULSE_TOKEN_URL = os.getenv("SENDPULSE_TOKEN_URL", "https://api.sendpulse.com/oauth/access_token")
+        except Exception as e:
+            logger.error("Erro ao fazer login: %s", str(e))
+            raise
 
-sendpulse_api = SendPulseAPI(SENDPULSE_CLIENT_ID, SENDPULSE_CLIENT_SECRET, SENDPULSE_TOKEN_URL)
+    def criar_usuario_teste(self, phone):
+        """Cria um usuário de teste IPTV vinculado ao telefone informado."""
 
-# Inicializar o app Flask
-app = Flask(__name__)
+        criar_url = f"{self.painel_url}/lines/test"
 
-@app.route("/webhook/iptv-teste", methods=["POST"])
-def criar_usuario_teste_iptv():
-    try:
-        data = request.get_json()
-        phone = data.get("phone")
+        payload = {
+            "notes": phone,
+            "package_p2p": "64399dca5ea59e8a1de2b083",
+            "krator_package": "1",
+            "package_iptv": 95,
+            "testDuration": 4
+        }
 
-        if not phone:
-            return jsonify({"error": "Telefone não fornecido"}), 400
+        headers = {
+            "Accept": "application/json",
+            "Content-Type": "application/json"
+        }
 
-        logging.info(f"Iniciando criação de teste IPTV para: {phone}")
+        try:
+            response = self.session.post(criar_url, json=payload, headers=headers)
+            response.raise_for_status()
 
-        # Criar usuário IPTV de teste
-        usuario, senha = iptv_automation.criar_usuario_teste(phone)
+            data = response.json()
+            username = data.get("username", "N/A")
+            password = data.get("password", "N/A")
+            logger.info(f"Usuário de teste IPTV criado: {username}")
+            return username, password
 
-        # Criar mensagem de texto
-        mensagem = f"🎉 Acesso de Teste IPTV 🎉\n\nUsuário: {usuario}\nSenha: {senha}\n\nBom proveito!"
-
-        # Enviar mensagem WhatsApp via SendPulse
-        status, resposta = sendpulse_api.enviar_mensagem_whatsapp(phone, mensagem)
-
-        if status != 200:
-            logging.error(f"Erro ao enviar mensagem WhatsApp: {resposta}")
-            return jsonify({"error": "Falha ao enviar mensagem WhatsApp"}), 500
-
-        logging.info(f"Usuário IPTV de teste criado e mensagem enviada para: {phone}")
-        return jsonify({"message": "Usuário de teste criado e mensagem enviada"}), 200
-
-    except Exception as e:
-        logging.error(f"Erro ao criar usuário IPTV: {e}")
-        return jsonify({"error": "Erro ao criar usuário IPTV"}), 500
-
-if __name__ == "__main__":
-    app.run(debug=True, host="0.0.0.0", port=5000)
+        except Exception as e:
+            logger.error("Erro ao criar usuário de teste IPTV: %s", e)
+            raise
