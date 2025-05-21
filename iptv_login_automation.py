@@ -32,19 +32,16 @@ class IPTVLoginAutomation:
     def criar_usuario_teste(self, identificador):
         """
         Cria um usuário de teste no painel IPTV.
-        O identificador pode ser um e-mail ou número de telefone.
-        Retorna o usuário e senha criados.
         """
         try:
             token = self.get_token()
             if not token:
                 raise Exception("Token JWT não disponível.")
 
-            # Gerar usuário e senha aleatórios
             usuario = f"teste_{''.join(random.choices(string.ascii_lowercase + string.digits, k=6))}"
             senha = ''.join(random.choices(string.ascii_letters + string.digits, k=8))
 
-            url = f"{self.painel_url}/users"  # Substitua esse endpoint se necessário
+            url = f"{self.painel_url}/users"  # Substitua se necessário
             headers = {
                 "Authorization": f"Bearer {token}",
                 "Content-Type": "application/json"
@@ -55,7 +52,7 @@ class IPTVLoginAutomation:
                 "password": senha,
                 "email": identificador if "@" in identificador else f"{usuario}@teste.com",
                 "is_trial": True,
-                "days": 1  # Exemplo: 1 dia de teste
+                "days": 1
             }
 
             response = requests.post(url, headers=headers, json=payload)
@@ -70,11 +67,9 @@ class IPTVLoginAutomation:
 
     def get_token(self):
         """
-        Retorna o token JWT do painel IPTV. Se houver um token salvo localmente, ele será reutilizado.
-        Caso contrário, será feita uma nova solicitação de login.
+        Retorna o token JWT do painel IPTV com tratamento robusto de erros.
         """
         try:
-            # Se o token já estiver salvo, tente reutilizar
             if os.path.exists(self.token_file):
                 with open(self.token_file, 'r') as f:
                     data = json.load(f)
@@ -83,7 +78,6 @@ class IPTVLoginAutomation:
                         logger.info("Token carregado do arquivo com sucesso.")
                         return token
 
-            # Senão, obter um novo token
             login_url = f"{self.painel_url}/login"
             payload = {
                 "username": self.username,
@@ -92,15 +86,26 @@ class IPTVLoginAutomation:
             headers = {
                 "Content-Type": "application/json"
             }
-            response = requests.post(login_url, json=payload, headers=headers)
-            response.raise_for_status()
 
-            data = response.json()
+            response = requests.post(login_url, json=payload, headers=headers)
+
+            if response.status_code != 200:
+                logger.error(f"Erro HTTP {response.status_code} ao fazer login no painel IPTV.")
+                logger.error(f"Resposta do servidor: {response.text}")
+                return None
+
+            try:
+                data = response.json()
+            except ValueError:
+                logger.error("Erro: resposta do painel IPTV não está em formato JSON.")
+                logger.error(f"Conteúdo da resposta: {response.text}")
+                return None
+
             token = data.get("token")
             if not token:
-                raise Exception("Token não encontrado na resposta do login")
+                logger.error("Token não encontrado na resposta do login.")
+                return None
 
-            # Salvar o token em arquivo
             with open(self.token_file, 'w') as f:
                 json.dump({"token": token}, f)
 
@@ -108,5 +113,5 @@ class IPTVLoginAutomation:
             return token
 
         except Exception as e:
-            logger.error(f"Erro ao obter token do painel IPTV: {str(e)}")
+            logger.error(f"Erro inesperado ao obter token do painel IPTV: {str(e)}")
             return None
