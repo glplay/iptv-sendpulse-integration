@@ -60,7 +60,7 @@ class SendPulseAPI:
                 return dados["data"][0]["id"]
 
         # Se não encontrar, criar o contato
-        create_url = f"{self.base_url}/contacts"
+        create_url = f"{self.base_url}/whatsapp/contacts"
         body = {
             "phone": phone,
             "variables": {}
