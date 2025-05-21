@@ -9,8 +9,7 @@ gunicorn==21.2.0
 selenium==4.15.2
 webdriver-manager==4.0.1
 
-# Dependências para logging e manipulação de dados
-logging==0.4.9.6
+# Dependências para manipulação de dados
 pyyaml==6.0.1
 
 # Dependências para deploy no Render.com
