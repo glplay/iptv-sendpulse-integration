@@ -1,7 +1,8 @@
-import os
 import requests
 import logging
-from datetime import datetime, timedelta
+import time
+
+logger = logging.getLogger("sendpulse_api")
 
 class SendPulseAPI:
     def __init__(self, client_id, client_secret, token_url="https://api.sendpulse.com/oauth/access_token"):
@@ -9,58 +10,95 @@ class SendPulseAPI:
         self.client_secret = client_secret
         self.token_url = token_url
         self.access_token = None
-        self.token_expiration = datetime.utcnow()
+        self.token_expires_at = 0
+        self.base_url = "https://api.sendpulse.com"
+        self._autenticar()
 
-    def autenticar(self):
-        if self.access_token and datetime.utcnow() < self.token_expiration:
-            return self.access_token
+    def _autenticar(self):
+        try:
+            response = requests.post(self.token_url, data={
+                "grant_type": "client_credentials",
+                "client_id": self.client_id,
+                "client_secret": self.client_secret
+            })
 
-        payload = {
-            "grant_type": "client_credentials",
-            "client_id": self.client_id,
-            "client_secret": self.client_secret,
-        }
-
-        response = requests.post(self.token_url, json=payload)
-        if response.status_code == 200:
+            response.raise_for_status()
             data = response.json()
             self.access_token = data["access_token"]
-            expires_in = data.get("expires_in", 3600)
-            self.token_expiration = datetime.utcnow() + timedelta(seconds=expires_in)
-            logging.info("Token de acesso obtido com sucesso.")
-            return self.access_token
-        else:
-            logging.error(f"Falha na autenticação SendPulse: {response.text}")
-            raise Exception("Erro ao autenticar com SendPulse")
+            self.token_expires_at = time.time() + data["expires_in"]
 
-    def enviar_mensagem_whatsapp(self, telefone_destino, mensagem):
-        try:
-            token = self.autenticar()
-
-            url = "https://api.sendpulse.com/whatsapp/contacts/send"
-
-            payload = {
-                "phone": telefone_destino,
-                "message": {
-                    "type": "text",
-                    "text": mensagem
-                }
-            }
-
-            headers = {
-                "Authorization": f"Bearer {token}",
-                "Content-Type": "application/json"
-            }
-
-            response = requests.post(url, json=payload, headers=headers)
-
-            if response.status_code == 200:
-                logging.info(f"Mensagem WhatsApp enviada com sucesso para {telefone_destino}")
-            else:
-                logging.error(f"Erro ao enviar mensagem WhatsApp: {response.status_code} - {response.text}")
-
-            return response.status_code, response.text
-
+            logger.info("Token de acesso obtido com sucesso.")
         except Exception as e:
-            logging.error(f"Exceção ao enviar mensagem WhatsApp: {e}")
-            return 500, str(e)
+            logger.error("Erro ao obter token de acesso: %s", e)
+            raise
+
+    def _verificar_token(self):
+        if not self.access_token or time.time() > self.token_expires_at:
+            self._autenticar()
+
+    def _get_headers(self):
+        self._verificar_token()
+        return {
+            "Authorization": f"Bearer {self.access_token}",
+            "Content-Type": "application/json",
+            "Accept": "application/json"
+        }
+
+    def obter_ou_criar_contato(self, phone):
+        """
+        Busca ou cria um contato e retorna o contact_id.
+        """
+        headers = self._get_headers()
+
+        # Tentar encontrar o contato
+        search_url = f"{self.base_url}/contacts/search?phone={phone}"
+        resp = requests.get(search_url, headers=headers)
+
+        if resp.status_code == 200:
+            dados = resp.json()
+            if dados.get("data"):
+                return dados["data"][0]["id"]
+
+        # Se não encontrar, criar o contato
+        create_url = f"{self.base_url}/contacts"
+        body = {
+            "phone": phone,
+            "variables": {}
+        }
+
+        resp = requests.post(create_url, headers=headers, json=body)
+
+        if resp.status_code in [200, 201]:
+            return resp.json()["data"]["contact_id"]
+        else:
+            logger.error(f"Erro ao criar contato: {resp.status_code} - {resp.text}")
+            raise Exception("Não foi possível obter ou criar o contato.")
+
+    def enviar_mensagem_whatsapp(self, phone, mensagem):
+        """
+        Envia mensagem WhatsApp para um número usando contact_id.
+        """
+        try:
+            contact_id = self.obter_ou_criar_contato(phone)
+        except Exception as e:
+            logger.error(f"Erro ao obter contact_id: {e}")
+            return 422, {"error": str(e)}
+
+        url = f"{self.base_url}/whatsapp/messages/send"
+
+        payload = {
+            "contact_id": contact_id,
+            "type": "text",
+            "message": {
+                "text": mensagem
+            }
+        }
+
+        headers = self._get_headers()
+
+        try:
+            response = requests.post(url, json=payload, headers=headers)
+            return response.status_code, response.json()
+        except Exception as e:
+            logger.error(f"Erro ao enviar mensagem WhatsApp: {e}")
+            return 500, {"error": str(e)}
