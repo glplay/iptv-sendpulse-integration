@@ -3,12 +3,10 @@
 
 from flask import Flask, request, jsonify
 import os
-import json
 import logging
 import requests
-from datetime import datetime
-from iptv_login_automation import IPTVLoginAutomation
 from dotenv import load_dotenv
+from iptv_login_automation import IPTVLoginAutomation
 
 # Carregar variáveis de ambiente
 load_dotenv()
@@ -36,14 +34,13 @@ SENDPULSE_CLIENT_ID = os.getenv("SENDPULSE_CLIENT_ID", "")
 SENDPULSE_CLIENT_SECRET = os.getenv("SENDPULSE_CLIENT_SECRET", "")
 TOKEN_FILE = os.getenv("TOKEN_FILE", "iptv_token.json")
 
-# Inicializar a automação de login
-import iptv_login_automation
-class IPTVLoginAutomation:
-    def __init__(self, username, password, painel_url, token_file):
-        self.username = username
-        self.password = password
-        self.painel_url = painel_url
-        self.token_file = token_file
+# Inicializar a automação de login IPTV
+iptv_automation = IPTVLoginAutomation(
+    IPTV_USERNAME,
+    IPTV_PASSWORD,
+    IPTV_PANEL_URL,
+    TOKEN_FILE
+)
 
 # Variável global para armazenar o token do SendPulse
 sendpulse_token = None
@@ -72,11 +69,10 @@ def obter_token_sendpulse():
 def criar_usuario_teste_iptv(ultimos_digitos):
     try:
         token = iptv_automation.get_token()
-        logger.info(f"Token JWT: {token}")  # Adiciona essa linha aqui
+        logger.info(f"Token JWT: {token}")
         if not token:
             logger.error("Token JWT não disponível para criar usuário")
             return None
-
 
         payload = {
             "notes": ultimos_digitos,
@@ -138,10 +134,12 @@ def enviar_credenciais_whatsapp(numero_telefone, username, password, exp_date):
         logger.error(f"Erro ao enviar credenciais via WhatsApp: {str(e)}")
         return False
 
+
 @app.route('/', methods=['GET'])
 def index():
     return jsonify({"status": "online", "mensagem": "API IPTV funcionando"}), 200
-    
+
+
 @app.route('/webhook/iptv-teste', methods=['POST'])
 def webhook_iptv_teste():
     try:
