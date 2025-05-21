@@ -5,8 +5,10 @@ import requests
 import json
 import os
 import logging
+import random
+import string
 
-# Configuração básica de logging (você pode remover isso se já configurar em outro lugar)
+# Configuração básica de logging
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
@@ -23,9 +25,6 @@ class IPTVLoginAutomation:
         self.password = password
         self.painel_url = painel_url
         self.token_file = token_file
-        
-import random
-import string
 
     def criar_usuario_teste(self, identificador):
         """
@@ -38,11 +37,10 @@ import string
             if not token:
                 raise Exception("Token JWT não disponível.")
 
-            # Gerar um nome de usuário e senha aleatória
             usuario = f"teste_{''.join(random.choices(string.ascii_lowercase + string.digits, k=6))}"
             senha = ''.join(random.choices(string.ascii_letters + string.digits, k=8))
 
-            url = f"{self.painel_url}/users"  # Substitua esse endpoint pelo correto
+            url = f"{self.painel_url}/users"  # Substitua pelo endpoint real
             headers = {
                 "Authorization": f"Bearer {token}",
                 "Content-Type": "application/json"
@@ -53,7 +51,7 @@ import string
                 "password": senha,
                 "email": identificador if "@" in identificador else f"{usuario}@teste.com",
                 "is_trial": True,
-                "days": 1  # exemplo: 1 dia de teste
+                "days": 1
             }
 
             response = requests.post(url, headers=headers, json=payload)
@@ -66,14 +64,11 @@ import string
             logger.error(f"Erro ao criar usuário de teste IPTV: {e}")
             raise
 
-
     def get_token(self):
         """
-        Retorna o token JWT do painel IPTV. Se houver um token salvo localmente, ele será reutilizado.
-        Caso contrário, será feita uma nova solicitação de login.
+        Retorna o token JWT do painel IPTV.
         """
         try:
-            # Se o token já estiver salvo, tente reutilizar
             if os.path.exists(self.token_file):
                 with open(self.token_file, 'r') as f:
                     data = json.load(f)
@@ -82,7 +77,6 @@ import string
                         logger.info("Token carregado do arquivo com sucesso.")
                         return token
 
-            # Senão, obter um novo token
             login_url = f"{self.painel_url}/login"
             payload = {
                 "username": self.username,
@@ -99,7 +93,6 @@ import string
             if not token:
                 raise Exception("Token não encontrado na resposta do login")
 
-            # Salvar o token em arquivo
             with open(self.token_file, 'w') as f:
                 json.dump({"token": token}, f)
 
