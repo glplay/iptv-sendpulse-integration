@@ -14,8 +14,14 @@ logging.basicConfig(level=logging.INFO)
 # Inicializar a automação de login IPTV
 IPTV_USERNAME = os.getenv("IPTV_USERNAME")
 IPTV_PASSWORD = os.getenv("IPTV_PASSWORD")
-IPTV_PANEL_URL = os.getenv("IPTV_PANEL_URL")
+IPTV_PANEL_URL = os.getenv("IPTV_URL")  # Corrigido aqui!
 TOKEN_FILE = os.getenv("TOKEN_FILE", "cookies.pkl")
+
+# Log para verificar carregamento correto
+logging.info(f"IPTV_URL carregado: {IPTV_PANEL_URL}")
+
+if not all([IPTV_USERNAME, IPTV_PASSWORD, IPTV_PANEL_URL]):
+    raise EnvironmentError("Erro: Variáveis de ambiente IPTV_USERNAME, IPTV_PASSWORD ou IPTV_URL não estão definidas.")
 
 iptv_automation = IPTVLoginAutomation(
     IPTV_USERNAME,
