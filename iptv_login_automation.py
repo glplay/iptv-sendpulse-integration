@@ -26,6 +26,8 @@ class IPTVLoginAutomation:
         self.painel_url = painel_url
         self.token_file = token_file
 
+logger.info(f"Painel IPTV URL definido como: {self.painel_url}")
+    
     def criar_usuario_teste(self, identificador):
         """
         Cria um usuário de teste no painel IPTV.
