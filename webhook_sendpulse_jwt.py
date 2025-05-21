@@ -38,24 +38,28 @@ app = Flask(__name__)
 def criar_usuario_teste_iptv():
     try:
         data = request.get_json()
-        email = data.get("email")
+        phone = data.get("phone")
 
-        if not email:
-            return jsonify({"error": "E-mail não fornecido"}), 400
+        if not phone:
+            return jsonify({"error": "Telefone não fornecido"}), 400
 
-        logging.info(f"Iniciando criação de teste IPTV para: {email}")
+        logging.info(f"Iniciando criação de teste IPTV para: {phone}")
 
         # Criar usuário IPTV de teste
-        usuario, senha = iptv_automation.criar_usuario_teste(email)
+        usuario, senha = iptv_automation.criar_usuario_teste(phone)
 
-        # Enviar e-mail via SendPulse
-        assunto = "Acesso de Teste IPTV"
-        mensagem = f"Olá! Aqui estão seus dados de teste:\nUsuário: {usuario}\nSenha: {senha}"
+        # Criar mensagem de texto
+        mensagem = f"🎉 Acesso de Teste IPTV 🎉\n\nUsuário: {usuario}\nSenha: {senha}\n\nBom proveito!"
 
-        sendpulse_api.enviar_email(email, assunto, mensagem)
+        # Enviar mensagem WhatsApp via SendPulse
+        status, resposta = sendpulse_api.enviar_mensagem_whatsapp(phone, mensagem)
 
-        logging.info(f"Usuário IPTV de teste criado com sucesso para: {email}")
-        return jsonify({"message": "Usuário de teste criado com sucesso"}), 200
+        if status != 200:
+            logging.error(f"Erro ao enviar mensagem WhatsApp: {resposta}")
+            return jsonify({"error": "Falha ao enviar mensagem WhatsApp"}), 500
+
+        logging.info(f"Usuário IPTV de teste criado e mensagem enviada para: {phone}")
+        return jsonify({"message": "Usuário de teste criado e mensagem enviada"}), 200
 
     except Exception as e:
         logging.error(f"Erro ao criar usuário IPTV: {e}")
