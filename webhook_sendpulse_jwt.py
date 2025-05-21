@@ -11,23 +11,17 @@ load_dotenv()
 # Configurar logging
 logging.basicConfig(level=logging.INFO)
 
-# Inicializar a automação de login IPTV
-IPTV_USERNAME = os.getenv("IPTV_USERNAME")
-IPTV_PASSWORD = os.getenv("IPTV_PASSWORD")
+# Variáveis de ambiente necessárias
+IPTV_JWT_TOKEN = os.getenv("IPTV_JWT_TOKEN")
 IPTV_PANEL_URL = os.getenv("IPTV_URL")
-TOKEN_FILE = os.getenv("TOKEN_FILE", "cookies.pkl")
+
+if not all([IPTV_JWT_TOKEN, IPTV_PANEL_URL]):
+    raise EnvironmentError("Erro: Variáveis de ambiente IPTV_JWT_TOKEN ou IPTV_URL não estão definidas.")
 
 logging.info(f"IPTV_URL carregado: {IPTV_PANEL_URL}")
 
-if not all([IPTV_USERNAME, IPTV_PASSWORD, IPTV_PANEL_URL]):
-    raise EnvironmentError("Erro: Variáveis de ambiente IPTV_USERNAME, IPTV_PASSWORD ou IPTV_URL não estão definidas.")
-
-iptv_automation = IPTVLoginAutomation(
-    IPTV_USERNAME,
-    IPTV_PASSWORD,
-    IPTV_PANEL_URL,
-    TOKEN_FILE
-)
+# Inicializar a automação IPTV com token JWT
+iptv_automation = IPTVLoginAutomation(IPTV_JWT_TOKEN, IPTV_PANEL_URL)
 
 # Inicializar a API do SendPulse
 SENDPULSE_CLIENT_ID = os.getenv("SENDPULSE_CLIENT_ID")
