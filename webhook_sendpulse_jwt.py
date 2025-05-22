@@ -4,22 +4,25 @@ import os
 
 app = Flask(__name__)
 
-LOGIN_URL = "https://apinew.knewcms.com/users/login"
+# URLs corretas
+LOGIN_URL = "https://apinew.knewcms.com/auth/login"
 CREATE_TEST_URL = "https://apinew.knewcms.com/lines/test"
 
+# Credenciais do painel
 USERNAME = "glplay"
 PASSWORD = "09kjksz"
 
 def get_jwt_token():
-    """Faz login e retorna o token JWT válido."""
+    """Faz login na API do painel e retorna o token JWT."""
     try:
-        response = requests.post(LOGIN_URL, json={
+        payload = {
             "username": USERNAME,
-            "password": PASSWORD
-        })
-        if response.status_code == 200:
-            token = response.json().get("token")
-            return token
+            "password": PASSWORD,
+            "twoFacToken": ""
+        }
+        response = requests.post(LOGIN_URL, json=payload)
+        if response.status_code == 201:
+            return response.json().get("token")
         else:
             print(f"[Erro Login] Status: {response.status_code} - {response.text}")
             return None
@@ -43,12 +46,13 @@ def gerar_teste():
 
     try:
         response = requests.post(CREATE_TEST_URL, headers=headers, json={})
-        if response.status_code == 200:
+        if response.status_code == 201:
             data = response.json()
             return jsonify({
                 "success": True,
                 "iptv_username": data.get("username"),
-                "iptv_password": data.get("password")
+                "iptv_password": data.get("password"),
+                "message": f"Login: {data.get('username')}\nSenha: {data.get('password')}"
             }), 200
         else:
             return jsonify({
