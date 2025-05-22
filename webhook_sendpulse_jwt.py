@@ -1,34 +1,35 @@
 from flask import Flask, request, jsonify
 import requests
+import os
 
 app = Flask(__name__)
 
-# Token retirado do sessionStorage (válido temporariamente)
+# Token retirado do sessionStorage
 JWT_TOKEN = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6Njk5MDk2LCJpYXQiOjE3NDc5MzQ1ODYsImV4cCI6MTc0Nzk0MTc4Nn0.9MWdWS9GWp6pNwnA2Oj8nkmj0qJTOx3BrJLIC-J_its"
 
-# Cabeçalhos com autenticação
 HEADERS = {
     "Content-Type": "application/json",
     "Authorization": f"Bearer {JWT_TOKEN}"
 }
 
-@app.route('/webhook', methods=['POST'])
+@app.route('/webhook/iptv-teste', methods=['POST'])
 def handle_webhook():
     try:
-        # Faz a requisição para criar o teste IPTV
+        # Verifica o conteúdo recebido
+        data = request.get_json()
+        print("JSON recebido:", data)
+
+        # Chamada para criação do teste
         response = requests.post(
             'https://apinew.knewcms.com/lines/test',
             headers=HEADERS,
             json={}
         )
 
-        # Trata o retorno
         if response.status_code == 200:
-            data = response.json()
-
-            # Extração de dados do teste criado
-            login = data.get("username")
-            senha = data.get("password")
+            result = response.json()
+            login = result.get("username")
+            senha = result.get("password")
 
             return jsonify({
                 "success": True,
@@ -49,8 +50,5 @@ def handle_webhook():
         }), 500
 
 if __name__ == '__main__':
-    import os
-
-port = int(os.environ.get("PORT", 5000))
-app.run(host="0.0.0.0", port=port, debug=True)
-
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host="0.0.0.0", port=port, debug=True)
