@@ -98,3 +98,27 @@ class SendPulseAPI:
         except Exception as e:
             logger.error(f"Erro ao enviar mensagem WhatsApp: {e}")
             return 500, {"error": str(e)}
+
+    def disparar_evento(self, event_name, phone, login, senha):
+        """
+        Dispara um evento do tipo webhook para iniciar um fluxo no SendPulse.
+        """
+        url = f"{self.base_url}/events/transmission"
+        headers = self._get_headers()
+
+        payload = {
+            "event": event_name,
+            "payload": {
+                "phone": phone,
+                "login": login,
+                "senha": senha
+            }
+        }
+
+        try:
+            response = requests.post(url, headers=headers, json=payload)
+            print("Resposta do evento:", response.status_code, response.text)
+            return response.status_code, response.json()
+        except Exception as e:
+            logger.error(f"Erro ao disparar evento: {e}")
+            return 500, {"error": str(e)}
