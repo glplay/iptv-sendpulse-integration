@@ -2,18 +2,15 @@ from flask import Flask, request, jsonify
 import requests
 import logging
 import os
+from random import randint
 
-# Configuração do Flask
 app = Flask(__name__)
 
 # Configurações SendPulse
-SENDPULSE_BOT_ID = "6817c097507ce58f0201fc08"  # Coloque o seu bot_id aqui
-SENDPULSE_API_TOKEN = os.environ.get("SENDPULSE_API_TOKEN")  # ou defina direto na string
+SENDPULSE_BOT_ID = "6817c097507ce58f0201fc08"
+SENDPULSE_API_TOKEN = os.environ.get("SENDPULSE_API_TOKEN")  # ou defina direto aqui
 
-# URL da API SendPulse para envio de mensagem WhatsApp
-SENDPULSE_API_URL = f"https://api.sendpulse.com/whatsapp/contacts"
-
-# Configuração do log
+# Logging
 logging.basicConfig(level=logging.INFO)
 
 @app.route("/webhook/iptv-teste", methods=["POST"])
@@ -23,31 +20,25 @@ def webhook_iptv_teste():
         numero = data.get("phone")
 
         if not numero:
-            logging.error("Telefone não fornecido no payload.")
-            return jsonify({"error": "Telefone é obrigatório."}), 400
+            return jsonify({"error": "Telefone é obrigatório"}), 400
 
-        logging.info(f"Iniciando criação de teste IPTV para: {numero}")
+        # Simula criação de login/senha
+        login = f"gplay{randint(100, 999)}"
+        senha = f"abc{randint(100, 999)}"
 
-        # Simula a criação do usuário IPTV
-        usuario_id = criar_usuario_teste_iptv()
-        logging.info(f"Usuário de teste IPTV criado: {usuario_id}")
+        # Enviar mensagem via SendPulse
+        mensagem = f"Seu teste IPTV foi criado!\nLogin: {login}\nSenha: {senha}"
+        enviar_mensagem_whatsapp(numero, mensagem)
 
-        # Enviar mensagem WhatsApp via SendPulse
-        mensagem = f"Olá! Seu teste IPTV está pronto. ID do usuário: {usuario_id}"
-        sucesso = enviar_mensagem_whatsapp(numero, mensagem)
-
-        if sucesso:
-            return jsonify({"status": "Mensagem enviada com sucesso."}), 200
-        else:
-            return jsonify({"error": "Erro ao enviar mensagem via WhatsApp."}), 500
+        # Retorna os dados para o SendPulse usar nos próximos blocos
+        return jsonify({
+            "login": login,
+            "senha": senha
+        }), 200
 
     except Exception as e:
-        logging.exception("Erro inesperado no webhook.")
+        logging.exception("Erro no webhook IPTV")
         return jsonify({"error": str(e)}), 500
-
-def criar_usuario_teste_iptv():
-    from random import randint
-    return str(randint(1000000, 9999999))
 
 def enviar_mensagem_whatsapp(telefone, mensagem):
     try:
@@ -67,17 +58,13 @@ def enviar_mensagem_whatsapp(telefone, mensagem):
         }
 
         response = requests.post("https://api.sendpulse.com/whatsapp/contacts/send", json=payload, headers=headers)
-
         if response.status_code == 200:
-            logging.info("Mensagem enviada com sucesso via WhatsApp.")
-            return True
+            logging.info("Mensagem WhatsApp enviada com sucesso.")
         else:
-            logging.error(f"Erro ao enviar mensagem WhatsApp: {response.status_code} - {response.text}")
-            return False
+            logging.error(f"Erro ao enviar WhatsApp: {response.status_code} - {response.text}")
 
     except Exception as e:
         logging.exception("Erro na função enviar_mensagem_whatsapp")
-        return False
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=10000, debug=True)
