@@ -16,8 +16,12 @@ HEADERS = {
 @app.route('/webhook/iptv-teste', methods=['POST'])
 def handle_webhook():
     try:
-        data = request.get_json(silent=True)
-        print("JSON recebido:", data)
+        print("Requisição recebida")
+
+        # Tenta extrair JSON
+        data = request.get_json(force=False, silent=True)
+        print("JSON bruto:", request.data)
+        print("JSON decodificado:", data)
 
         if data is None:
             return jsonify({
