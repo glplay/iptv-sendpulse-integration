@@ -4,52 +4,63 @@ import os
 
 app = Flask(__name__)
 
+LOGIN_URL = "https://apinew.knewcms.com/users/login"
+CREATE_TEST_URL = "https://apinew.knewcms.com/lines/test"
+
 USERNAME = "glplay"
 PASSWORD = "09kjksz"
 
-def obter_token_jwt(username, password):
-    login_url = "https://apinew.knewcms.com/users/login"
-    payload = {
-        "username": username,
-        "password": password
-    }
+def get_jwt_token():
+    """Faz login e retorna o token JWT válido."""
     try:
-        resposta = requests.post(login_url, json=payload)
-        if resposta.status_code == 200:
-            dados = resposta.json()
-            return dados.get("token")
+        response = requests.post(LOGIN_URL, json={
+            "username": USERNAME,
+            "password": PASSWORD
+        })
+        if response.status_code == 200:
+            token = response.json().get("token")
+            return token
         else:
-            print(f"Erro no login: {resposta.text}")
+            print(f"[Erro Login] Status: {response.status_code} - {response.text}")
             return None
     except Exception as e:
-        print(f"Erro ao obter token: {e}")
+        print(f"[Exceção Login] {e}")
         return None
 
 @app.route("/webhook/iptv-teste", methods=["POST"])
-def criar_teste_iptv():
-    token = obter_token_jwt(USERNAME, PASSWORD)
+def gerar_teste():
+    token = get_jwt_token()
     if not token:
-        return jsonify({"success": False, "message": "Falha ao obter token"}), 401
+        return jsonify({
+            "success": False,
+            "message": "Falha ao autenticar usuário. Token não obtido."
+        }), 401
 
     headers = {
-        "Content-Type": "application/json",
-        "Authorization": f"Bearer {token}"
+        "Authorization": f"Bearer {token}",
+        "Content-Type": "application/json"
     }
 
     try:
-        resposta = requests.post("https://apinew.knewcms.com/lines/test", headers=headers, json={})
-        if resposta.status_code == 200:
-            dados = resposta.json()
+        response = requests.post(CREATE_TEST_URL, headers=headers, json={})
+        if response.status_code == 200:
+            data = response.json()
             return jsonify({
                 "success": True,
-                "iptv_username": dados.get("username"),
-                "iptv_password": dados.get("password")
+                "iptv_username": data.get("username"),
+                "iptv_password": data.get("password")
             }), 200
         else:
-            return jsonify({"success": False, "message": f"Erro ao criar teste: {resposta.text}"}), resposta.status_code
+            return jsonify({
+                "success": False,
+                "message": f"Erro ao criar teste IPTV: {response.status_code} - {response.text}"
+            }), response.status_code
     except Exception as e:
-        return jsonify({"success": False, "message": f"Erro inesperado: {e}"}), 500
+        return jsonify({
+            "success": False,
+            "message": f"Erro inesperado ao criar teste: {str(e)}"
+        }), 500
 
 if __name__ == "__main__":
-    porta = int(os.environ.get("PORT", 5000))
-    app.run(host="0.0.0.0", port=porta, debug=True)
+    port = int(os.environ.get("PORT", 10000))
+    app.run(host="0.0.0.0", port=port, debug=True)
