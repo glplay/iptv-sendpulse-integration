@@ -1,133 +1,52 @@
-import os
-import json
-import logging
-import requests
 from flask import Flask, request, jsonify
+import requests
 
 app = Flask(__name__)
-logging.basicConfig(level=logging.INFO)
 
-# Função para obter o token JWT do SendPulse via client_id e client_secret
-def get_sendpulse_access_token():
-    url = os.getenv("SENDPULSE_TOKEN_URL")
-    client_id = os.getenv("SENDPULSE_CLIENT_ID")
-    client_secret = os.getenv("SENDPULSE_CLIENT_SECRET")
+# Token retirado do sessionStorage (válido temporariamente)
+JWT_TOKEN = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6Njk5MDk2LCJpYXQiOjE3NDc5MzQ1ODYsImV4cCI6MTc0Nzk0MTc4Nn0.9MWdWS9GWp6pNwnA2Oj8nkmj0qJTOx3BrJLIC-J_its"
 
-    logging.info("Solicitando token de acesso ao SendPulse...")
+# Cabeçalhos com autenticação
+HEADERS = {
+    "Content-Type": "application/json",
+    "Authorization": f"Bearer {JWT_TOKEN}"
+}
 
-    response = requests.post(url, json={
-        "grant_type": "client_credentials",
-        "client_id": client_id,
-        "client_secret": client_secret
-    })
+@app.route('/webhook', methods=['POST'])
+def handle_webhook():
+    try:
+        # Faz a requisição para criar o teste IPTV
+        response = requests.post(
+            'https://apinew.knewcms.com/lines/test',
+            headers=HEADERS,
+            json={}
+        )
 
-    if response.status_code == 200:
-        token = response.json().get("access_token")
-        logging.info("Token de acesso obtido com sucesso.")
-        return token
-    else:
-        logging.error(f"Erro ao obter token: {response.text}")
-        return None
+        # Trata o retorno
+        if response.status_code == 200:
+            data = response.json()
 
-# Função para criar o teste IPTV
-def criar_teste_iptv(numero):
-    url = os.getenv("IPTV_URL") + "/lines/test"
-    jwt = os.getenv("IPTV_JWT_TOKEN")
+            # Extração de dados do teste criado
+            login = data.get("username")
+            senha = data.get("password")
 
-    headers = {
-        "Authorization": f"Bearer {jwt}",
-        "Content-Type": "application/json"
-    }
+            return jsonify({
+                "success": True,
+                "iptv_username": login,
+                "iptv_password": senha
+            }), 200
 
-    payload = {
-        "notes": str(numero),
-        "package_p2p": "64399dca5ea59e8a1de2b083",
-        "krator_package": "1",
-        "package_iptv": 95,
-        "testDuration": 4
-    }
+        else:
+            return jsonify({
+                "success": False,
+                "message": f"Erro ao criar teste: {response.text}"
+            }), response.status_code
 
-    logging.info(f"Iniciando criação de teste IPTV para: {numero}")
-    response = requests.post(url, json=payload, headers=headers)
+    except Exception as e:
+        return jsonify({
+            "success": False,
+            "message": f"Erro inesperado: {str(e)}"
+        }), 500
 
-    if response.status_code == 201:
-        dados = response.json()
-        logging.info(f"Teste criado com sucesso: {dados}")
-        return dados
-    else:
-        logging.error(f"Erro ao criar teste IPTV: {response.text}")
-        return None
-
-# Função para enviar a mensagem WhatsApp via SendPulse
-def enviar_mensagem(numero, login, senha):
-    token = get_sendpulse_access_token()
-    if not token:
-        return False
-
-    url = "https://api.sendpulse.com/whatsapp/contacts/send"
-
-    headers = {
-        "Authorization": f"Bearer {token}",
-        "Content-Type": "application/json"
-    }
-
-    payload = {
-        "phone": numero,
-        "book_id": 0,
-        "message": {
-            "type": "template",
-            "template": {
-                "name": "iptv_teste",
-                "language": {"code": "pt_BR"},
-                "components": [
-                    {
-                        "type": "body",
-                        "parameters": [
-                            {"type": "text", "text": login},
-                            {"type": "text", "text": senha}
-                        ]
-                    }
-                ]
-            }
-        }
-    }
-
-    logging.info("Enviando mensagem WhatsApp com dados do teste...")
-    response = requests.post(url, json=payload, headers=headers)
-
-    if response.status_code == 200:
-        logging.info("Mensagem enviada com sucesso.")
-        return True
-    else:
-        logging.error(f"Erro ao enviar mensagem WhatsApp: {response.status_code} - {response.text}")
-        return False
-
-@app.route("/webhook/iptv-teste", methods=["POST"])
-def webhook_iptv_teste():
-    data = request.json
-    numero = data.get("phone")
-
-    if not numero:
-        return jsonify({"error": "Telefone não fornecido"}), 400
-
-    dados_teste = criar_teste_iptv(numero)
-
-    if not dados_teste:
-        return jsonify({"error": "Falha ao criar teste"}), 500
-
-    login = dados_teste.get("username")
-    senha = dados_teste.get("password")
-
-    if not login or not senha:
-        return jsonify({"error": "Dados de login incompletos"}), 500
-
-    sucesso = enviar_mensagem(numero, login, senha)
-
-    if sucesso:
-        return jsonify({"mensagem": "Teste criado e mensagem enviada"})
-    else:
-        return jsonify({"mensagem": "Teste criado, mas falha ao enviar mensagem"}), 500
-
-if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=10000, debug=True)
-
+if __name__ == '__main__':
+    app.run(debug=True, port=5001)
