@@ -4,9 +4,10 @@ import os
 
 app = Flask(__name__)
 
-# Token retirado do sessionStorage
+# Token retirado do sessionStorage (válido temporariamente)
 JWT_TOKEN = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6Njk5MDk2LCJpYXQiOjE3NDc5MzQ1ODYsImV4cCI6MTc0Nzk0MTc4Nn0.9MWdWS9GWp6pNwnA2Oj8nkmj0qJTOx3BrJLIC-J_its"
 
+# Cabeçalhos com autenticação
 HEADERS = {
     "Content-Type": "application/json",
     "Authorization": f"Bearer {JWT_TOKEN}"
@@ -15,28 +16,32 @@ HEADERS = {
 @app.route('/webhook/iptv-teste', methods=['POST'])
 def handle_webhook():
     try:
-        # Verifica o conteúdo recebido
-        data = request.get_json()
+        data = request.get_json(silent=True)
         print("JSON recebido:", data)
 
-        # Chamada para criação do teste
+        if data is None:
+            return jsonify({
+                "success": False,
+                "message": "Requisição inválida: corpo JSON ausente ou malformado."
+            }), 400
+
+        # Faz a requisição para criar o teste IPTV
         response = requests.post(
             'https://apinew.knewcms.com/lines/test',
             headers=HEADERS,
-            json={}
+            json={}  # Se precisar passar dados específicos, modifique aqui
         )
 
         if response.status_code == 200:
-            result = response.json()
-            login = result.get("username")
-            senha = result.get("password")
+            data = response.json()
+            login = data.get("username")
+            senha = data.get("password")
 
             return jsonify({
                 "success": True,
                 "iptv_username": login,
                 "iptv_password": senha
             }), 200
-
         else:
             return jsonify({
                 "success": False,
